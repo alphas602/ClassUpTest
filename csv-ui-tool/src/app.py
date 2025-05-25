@@ -9,6 +9,20 @@ class CsvUiTool:
         master.title("daigas classup")
         self.count = 0
         self.folder_path = folder_path
+        self.mode = tk.StringVar(value="normal")
+        self.mode_label = tk.Label(master, text="出題モードを選択して下さい:")
+
+        self.normal_mode_button = tk.Radiobutton(
+            master, text="順番に出題", variable=self.mode, value="normal", command=self.set_mode
+        )
+        self.random_mode_button = tk.Radiobutton(
+            master, text="ランダムに出題", variable=self.mode, value="random", command=self.set_mode
+        )
+        self.random_mode_button.pack()
+
+        # 開始ボタン
+        self.start_button = tk.Button(master, text="開始", command=self.start_quiz)
+        self.start_button.pack()
 
         self.label = tk.Label(master, text="Questions from CSV:")
         self.label.pack()
@@ -30,8 +44,9 @@ class CsvUiTool:
             underline=True
         )
 
-        self.question_text = tk.Text(master, wrap="word", height=10, width=80)
-        self.question_text.config(
+        self.question_text = tk.Text(
+            master,
+            wrap="word",
             font=("Arial", 20),
             fg="black",
             bg="white",
@@ -47,14 +62,16 @@ class CsvUiTool:
             highlightcolor="blue",
         )
         self.question_text.pack()
-
         self.question_scroll = ttk.Scrollbar(master, command=self.question_text.yview)
         self.question_scroll.pack(side="right", fill="y")
         self.question_text["yscrollcommand"] = self.question_scroll.set
 
         # 回答用のスクロール可能なテキストエリア
-        self.answer_text = tk.Text(master, wrap="word", height=10, width=80)
-        self.answer_text.config(
+        self.answer_text = tk.Text(
+            master,
+            wrap="word",
+            height=10,
+            width=80,
             font=("Arial", 20),
             fg="black",
             bg="white",
@@ -64,7 +81,6 @@ class CsvUiTool:
             relief="solid",
         )
         self.answer_text.pack()
-
         self.answer_scroll = ttk.Scrollbar(master, command=self.answer_text.yview)
         self.answer_scroll.pack(side="right", fill="y")
         self.answer_text["yscrollcommand"] = self.answer_scroll.set
@@ -74,12 +90,24 @@ class CsvUiTool:
         master.bind("<Return>", self.refresh_display)
         
         self.datas=load_all_csv_files(self.folder_path)
+
+    def set_mode(self):
+        """モードを設定する（ラジオボタンの選択時に呼び出される）"""
+        print(f"選択されたモード: {self.mode.get()}")  # デバッグ用
+
+    def start_quiz(self):
+        """クイズを開始する"""
+        # CSVデータをロード
+        self.data = load_all_csv_files(self.folder_path)
         self.data = []
         for file_path in self.datas:
             self.data.extend(load_csv_data(file_path))  # 各ファイルのデータを self.data に追加
-        
-        
-        self.shuffle_data()
+
+        # ランダムモードの場合、データをシャッフル
+        if self.mode.get() == "random":
+            random.shuffle(self.data)
+
+        # 最初の質問を表示
         self.current_question_index = 0
         self.set_question()
 

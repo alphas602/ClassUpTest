@@ -1,7 +1,7 @@
 import random  # ランダム操作のためにインポート
 import tkinter as tk
 from utils.csv_handler import load_csv_data, load_all_csv_files
-
+from tkinter import ttk
 
 class CsvUiTool:
     def __init__(self, master, folder_path="C:\\Users\\yoshi\\temp\\csv-ui-tool\\mondai"):
@@ -30,10 +30,8 @@ class CsvUiTool:
             underline=True
         )
 
-        self.question_var = tk.StringVar()
-        self.question_label = tk.Label(master, textvariable=self.question_var, wraplength=1300)
-        self.question_label.pack()
-        self.question_label.config(
+        self.question_text = tk.Text(master, wrap="word", height=10, width=80)
+        self.question_text.config(
             font=("Arial", 20),
             fg="black",
             bg="white",
@@ -47,21 +45,30 @@ class CsvUiTool:
             highlightthickness=1,
             highlightbackground="gray",
             highlightcolor="blue",
-            justify="left"
         )
+        self.question_text.pack()
 
-        self.answer_var = tk.StringVar()
-        self.answer_label = tk.Label(self.master, textvariable=self.answer_var, wraplength=800)
-        self.answer_label.pack()
-        self.answer_label.config(
+        self.question_scroll = ttk.Scrollbar(master, command=self.question_text.yview)
+        self.question_scroll.pack(side="right", fill="y")
+        self.question_text["yscrollcommand"] = self.question_scroll.set
+
+        # 回答用のスクロール可能なテキストエリア
+        self.answer_text = tk.Text(master, wrap="word", height=10, width=80)
+        self.answer_text.config(
             font=("Arial", 20),
             fg="black",
             bg="white",
             padx=10, 
             pady=10,
             borderwidth=1, 
-            relief="solid"
+            relief="solid",
         )
+        self.answer_text.pack()
+
+        self.answer_scroll = ttk.Scrollbar(master, command=self.answer_text.yview)
+        self.answer_scroll.pack(side="right", fill="y")
+        self.answer_text["yscrollcommand"] = self.answer_scroll.set
+
 
         # Enterキーで回答を表示するように設定
         master.bind("<Return>", self.refresh_display)
@@ -78,19 +85,42 @@ class CsvUiTool:
 
     def set_question(self):
         if self.current_question_index < len(self.data) and self.count%2 == 0:
-            self.question_var.set(self.data[self.current_question_index]['Question'])
-            self.answer_var.set("")  # 回答ラベルをクリア
+            # 一時的に編集可能にする
+            self.question_text.config(state="normal")
+            self.question_text.delete("1.0", tk.END)  # テキストエリアをクリア
+            self.question_text.insert(tk.END, self.data[self.current_question_index]['Question'])
+            # 再び編集不可にする
+            self.question_text.config(state="disabled")
+
+            # 回答エリアをクリア
+            self.answer_text.config(state="normal")
+            self.answer_text.delete("1.0", tk.END)
+            self.answer_text.config(state="disabled")
         else:
-            self.question_var.set("No more questions.")
-            self.answer_var.set("")
+            self.question_text.config(state="normal")
+            self.question_text.delete("1.0", tk.END)
+            self.question_text.insert(tk.END, "No more questions.")
+            self.question_text.config(state="disabled")
+
+            self.answer_text.config(state="normal")
+            self.answer_text.delete("1.0", tk.END)
+            self.answer_text.config(state="disabled")
 
     def set_answer(self):
-        if self.current_question_index < len(self.data) and self.count%2 == 1:
+        if self.current_question_index < len(self.data) and self.count % 2 == 1:
             answer = self.data[self.current_question_index]['Answer']
-            self.answer_var.set(answer)
+            # 一時的に編集可能にする
+            self.answer_text.config(state="normal")
+            self.answer_text.delete("1.0", tk.END)  # テキストエリアをクリア
+            self.answer_text.insert(tk.END, answer)
+            # 再び編集不可にする
+            self.answer_text.config(state="disabled")
             self.current_question_index += 1
         else:
-            self.answer_var.set("No more answers.")
+            self.answer_text.config(state="normal")
+            self.answer_text.delete("1.0", tk.END)
+            self.answer_text.insert(tk.END, "No more answers.")
+            self.answer_text.config(state="disabled")
 
     def refresh_display(self, event=None):
         """Enterキーが押されたときに呼び出されるメソッド"""

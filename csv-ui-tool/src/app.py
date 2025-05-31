@@ -10,17 +10,49 @@ class CsvUiTool:
             # app.pyから見て../mondai を指す相対パス
             folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai")
         self.master = master
-        master.title("daigas classup")
+        self.master.title("daigas classup")
         self.count = 0
         self.folder_path = folder_path
+        self.ValidFileNames = []  # 有効なファイル名を格納するリスト
+        self.file_pathes,self.datanames = load_all_csv_files(self.folder_path)
 
+        self.open_settings_menu()
+
+    def open_settings_menu(self):
+        """設定メニューをmaster上に開き、ファイル名を複数選択できるようにする"""
+        # 既存ウィジェットを一旦全て削除
+        for widget in self.master.winfo_children():
+            widget.destroy()
+
+        # ラベル
+        label = tk.Label(self.master, text="使用するファイルを選択してください（複数選択可）")
+        label.pack(pady=10)
+
+        # Listbox（複数選択可）
+        self.file_listbox = tk.Listbox(self.master, selectmode=tk.MULTIPLE, width=40, height=15)
+        for name in self.datanames:
+            self.file_listbox.insert(tk.END, name)
+        self.file_listbox.pack(pady=10)
+
+        # OKボタン
+        ok_button = tk.Button(self.master, text="OK", command=self.confirm_file_selection)
+        ok_button.pack(pady=10)
+
+    def confirm_file_selection(self):
+        """選択されたファイル名をValidFileNamesリストに追加し、設定画面を消して初期画面を表示"""
+        selected_indices = self.file_listbox.curselection()
+        self.ValidFileNames = [self.datanames[i] for i in selected_indices]
+
+        # 設定画面のウィジェットを削除
+        for widget in self.master.winfo_children():
+            widget.destroy()
+
+        # 初期画面を表示
         self.initialmode()
         self.init_buttons()
 
         # Enterキーで回答を表示するように設定
-        master.bind("<Return>", self.refresh_display)
-        
-        self.file_pathes,self.datanames = load_all_csv_files(self.folder_path)
+        self.master.bind("<Return>", self.refresh_display)
 
 
     def initialmode(self):
@@ -110,8 +142,10 @@ class CsvUiTool:
 
     def set_data(self):
         self.data = []
-        for file_path in self.file_pathes:
-            self.data.extend(load_csv_data(file_path))  # 各ファイルのデータを self.data に追加
+        # self.ValidFileNames に該当するファイルだけデータを追加
+        for file_path, file_name in zip(self.file_pathes, self.datanames):
+            if file_name in self.ValidFileNames:
+                self.data.extend(load_csv_data(file_path))  # 各ファイルのデータを self.data に追加
 
         # ランダムモードの場合、データをシャッフル
         if self.mode.get() == "random":
@@ -134,7 +168,7 @@ class CsvUiTool:
             self.Title.config(text="No questions available.")
 
     def set_question(self):
-        if self.current_question_index < len(self.data) and self.count%2 == 0:
+        if self.current_question_index < len(self.data):
             # 一時的に編集可能にする
             self.question_text.config(state="normal")
             self.question_text.delete("1.0", tk.END)  # テキストエリアをクリア
@@ -158,7 +192,7 @@ class CsvUiTool:
             self.answer_text.config(state="disabled")
 
     def set_answer(self):
-        if self.current_question_index < len(self.data) and self.count % 2 == 1:
+        if self.current_question_index < len(self.data):
             answer = self.data[self.current_question_index]['Answer']
             # 一時的に編集可能にする
             self.answer_text.config(state="normal")

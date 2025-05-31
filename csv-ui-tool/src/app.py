@@ -2,9 +2,13 @@ import random  # ランダム操作のためにインポート
 import tkinter as tk
 from utils.csv_handler import load_csv_data, load_all_csv_files
 from tkinter import ttk
+import os  # ファイルパス操作のためにインポート
 
 class CsvUiTool:
-    def __init__(self, master, folder_path="C:\\Users\\yoshi\\temp\\csv-ui-tool\\mondai"):
+    def __init__(self, master, folder_path=None):
+        if folder_path is None:
+            # app.pyから見て../mondai を指す相対パス
+            folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai")
         self.master = master
         master.title("daigas classup")
         self.count = 0

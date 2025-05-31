@@ -28,12 +28,16 @@ def load_csv_data(file_path):
         #　「問題」もしくは「解答」の列が空でない行のみを抽出
         df = df.dropna(subset=[df.columns[question_col], df.columns[answer_col]])
 
+        # ファイル名（拡張子なし）を取得
+        base_filename = os.path.splitext(os.path.basename(file_path))[0]
+
         # データをリスト形式で返す
         data = []
         for _, row in df.iterrows():
             data.append({
                 'Question': row[question_col],
-                'Answer': row[answer_col]
+                'Answer': row[answer_col],
+                'FileName': base_filename
             })
         return data
 
@@ -44,11 +48,15 @@ def load_csv_data(file_path):
 def load_all_csv_files(folder_path):
     """指定フォルダ内のすべてのCSVファイルのパスをリストとして返す"""
     csv_files = []
+    csv_file_names = []
     for file_name in os.listdir(folder_path):
         if file_name.endswith(".csv"):  # .csv ファイルのみ対象
             file_path = os.path.join(folder_path, file_name)
             csv_files.append(file_path)  # ファイルパスをリストに追加
-    return csv_files
+            base_name = os.path.splitext(file_name)[0]  # 拡張子なしファイル名
+            csv_file_names.append(base_name)
+    
+    return csv_files,csv_file_names
 
 def extract_questions(data):
     if data is not None:

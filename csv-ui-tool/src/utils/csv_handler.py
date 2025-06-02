@@ -20,6 +20,8 @@ def load_csv_data(file_path):
                 question_col = col_index
             if "解答" in str(col_name):
                 answer_col = col_index
+            if "ファイル名" in str(col_name):
+                file_name_col = col_index
 
         # 必要な列が見つからない場合のエラーハンドリング
         if question_col is None or answer_col is None:
@@ -31,14 +33,22 @@ def load_csv_data(file_path):
         # ファイル名（拡張子なし）を取得
         base_filename = os.path.splitext(os.path.basename(file_path))[0]
 
-        # データをリスト形式で返す
+        # データをリスト形式で返す(missed_questionの場合はファイル名は各行から取得、それ以外はファイル名を共通で使用)
         data = []
-        for _, row in df.iterrows():
-            data.append({
-                'Question': row[question_col],
-                'Answer': row[answer_col],
-                'FileName': base_filename
-            })
+        if(base_filename == "missed_question"):
+            for _, row in df.iterrows():
+                data.append({
+                    'Question': row[question_col],
+                    'Answer': row[answer_col],
+                    'FileName': row[file_name_col]
+                })
+        else:
+            for _, row in df.iterrows():
+                data.append({
+                    'Question': row[question_col],
+                    'Answer': row[answer_col],
+                    'FileName': base_filename
+                })
         return data
 
     except Exception as e:

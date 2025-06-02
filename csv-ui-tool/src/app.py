@@ -3,6 +3,7 @@ import tkinter as tk
 from utils.csv_handler import load_csv_data, load_all_csv_files
 from tkinter import ttk
 import os  # ファイルパス操作のためにインポート
+import csv  # CSVファイルの読み書きのためにインポート
 
 class CsvUiTool:
     def __init__(self, master, folder_path=None):
@@ -12,8 +13,12 @@ class CsvUiTool:
         self.master = master
         self.master.title("daigas classup")
         self.count = 0
+        self.endcount = 0 # 問題終了数を設定するカウント
         self.folder_path = folder_path
+        self.missed_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai", "missed_question", "missed_question.csv")
         self.ValidFileNames = []  # 有効なファイル名を格納するリスト
+        self.remember_data = []  # 記憶した問題と回答を格納するリスト
+
         self.file_pathes,self.datanames = load_all_csv_files(self.folder_path)
 
         self.open_settings_menu()
@@ -37,7 +42,7 @@ class CsvUiTool:
         # OKボタン
         ok_button = tk.Button(self.master, text="OK", command=self.confirm_file_selection)
         ok_button.pack(pady=10)
-
+    
     def confirm_file_selection(self):
         """選択されたファイル名をValidFileNamesリストに追加し、設定画面を消して初期画面を表示"""
         selected_indices = self.file_listbox.curselection()
@@ -54,24 +59,46 @@ class CsvUiTool:
         # Enterキーで回答を表示するように設定
         self.master.bind("<Return>", self.refresh_display)
 
+        # "[" キーで今出題中の問題を記憶するように設定
+        self.master.bind("<KeyPress-[>", self.remember_question)
+
 
     def initialmode(self):
         self.mode = tk.StringVar(value="normal")
         self.mode_label = tk.Label(self.master, text="出題モードを選択して下さい:")
+        self.mode_label.pack()
+
+        # 横並び用のフレームを作成
+        mode_frame = tk.Frame(self.master)
+        mode_frame.pack(pady=10)
 
         self.normal_mode_button = tk.Radiobutton(
-            self.master, text="順番に出題", variable=self.mode, value="normal", command=self.set_mode
+            mode_frame, text="順番に出題", variable=self.mode, value="normal", command=self.set_mode
         )
-        self.normal_mode_button.pack()
+        self.normal_mode_button.pack(side="left", padx=10)
+
         self.random_mode_button = tk.Radiobutton(
-            self.master, text="ランダムに出題", variable=self.mode, value="random", command=self.set_mode
+            mode_frame, text="ランダムに出題", variable=self.mode, value="random", command=self.set_mode
         )
-        self.random_mode_button.pack()
+        self.random_mode_button.pack(side="left", padx=10)
+
+        self.miss_mode_button = tk.Radiobutton(
+            mode_frame, text="missed_question.csvから出題", variable=self.mode, value="missed", command=self.set_mode
+        )
+        self.miss_mode_button.pack(side="left", padx=10)
 
     def init_buttons(self):
+        # ボタンを横並びにするフレームを作成
+        button_frame = tk.Frame(self.master)
+        button_frame.pack(pady=5)
+
         # 開始ボタン
-        self.start_button = tk.Button(self.master, text="開始", command=self.start_quiz)
-        self.start_button.pack()
+        self.start_button = tk.Button(button_frame, text="開始", command=self.start_quiz)
+        self.start_button.pack(side="left", padx=10)
+
+        # ファイル名選択ボタン
+        self.file_select_button = tk.Button(button_frame, text="ファイル選択", command=self.open_settings_menu)
+        self.file_select_button.pack(side="left", padx=10)
 
         # タイトル
         self.Title = tk.Label(self.master, text="Questions from CSV:")
@@ -142,14 +169,21 @@ class CsvUiTool:
 
     def set_data(self):
         self.data = []
-        # self.ValidFileNames に該当するファイルだけデータを追加
-        for file_path, file_name in zip(self.file_pathes, self.datanames):
-            if file_name in self.ValidFileNames:
-                self.data.extend(load_csv_data(file_path))  # 各ファイルのデータを self.data に追加
+        if self.mode.get() == "missed":
+            # missed_question.csvからデータを読み込む
+            if os.path.isfile(self.missed_path):
+                self.data = load_csv_data(self.missed_path)
+            else:
+                print("missed_question.csvが見つかりません。")
+        else:
+            # self.ValidFileNames に該当するファイルだけデータを追加
+            for file_path, file_name in zip(self.file_pathes, self.datanames):
+                if file_name in self.ValidFileNames:
+                    self.data.extend(load_csv_data(file_path))  # 各ファイルのデータを self.data に追加
 
-        # ランダムモードの場合、データをシャッフル
-        if self.mode.get() == "random":
-            random.shuffle(self.data)
+            # ランダムモードの場合、データをシャッフル
+            if self.mode.get() == "random":
+                random.shuffle(self.data)
 
     def start_quiz(self):
         """クイズを開始する"""
@@ -157,6 +191,7 @@ class CsvUiTool:
         self.set_data()
         # 最初の質問を表示
         self.current_question_index = 0
+        self.endcount = 0
         self.set_question()
 
     def set_Title(self):
@@ -212,10 +247,43 @@ class CsvUiTool:
         self.count += 1
         if self.count % 2 == 0:
             self.set_question()
+            self.endcount += 1
         else:
             self.set_answer()
 
-    def shuffle_data(self):
-        """self.data の行をランダムに入れ替える"""
-        random.shuffle(self.data)
-        self.set_question()  # 最初の問題を表示
+    def remember_question(self, event=None):
+        """現在の問題を記憶し、missed_question.csvに都度出力する"""
+        if self.current_question_index < len(self.data) and self.MissedDataIsRedundant(self.data[self.endcount])==False:
+            question = self.data[self.endcount]['Question']
+            answer = self.data[self.endcount]['Answer']
+            file_name = self.data[self.endcount]['FileName']
+            self.remember_data.append({'問題': question, '解答': answer, 'ファイル名': file_name})
+            print(f"問題: {question}, 解答: {answer}, ファイル名: {file_name}")
+
+            # 保存先パスを指定
+            file_exists = os.path.isfile(self.missed_path)
+            with open(self.missed_path, mode="a", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=["問題", "解答", "ファイル名"])
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerow({'問題': question, '解答': answer, 'ファイル名': file_name})
+        else:
+            print("現在の問題がないか、問題が重複しています")
+
+    def MissedDataIsRedundant(self, data):
+        """
+        missed_question.csvに記載されている問題をチェックし、
+        「問題」「解答」「ファイル名」がすべて一致する行がある場合はTrueを返す
+        """
+        if os.path.isfile(self.missed_path):
+            with open(self.missed_path, encoding="utf-8", newline="") as f:
+                import csv
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if (
+                        row["問題"] == data["Question"]
+                        and row["解答"] == data["Answer"]
+                        and row["ファイル名"] == data["FileName"]
+                    ):
+                        return True
+        return False

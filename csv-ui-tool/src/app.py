@@ -39,9 +39,29 @@ class CsvUiTool:
             self.file_listbox.insert(tk.END, name)
         self.file_listbox.pack(pady=10)
 
+        # Select ALL/NONEボタン用フレーム
+        select_frame = tk.Frame(self.master)
+        select_frame.pack(pady=5)
+
+        # Select ALLボタン
+        select_all_btn = tk.Button(select_frame, text="Select ALL", command=self.select_all_files)
+        select_all_btn.pack(side="left", padx=5)
+
+        # Select NONEボタン
+        select_none_btn = tk.Button(select_frame, text="Select NONE", command=self.select_none_files)
+        select_none_btn.pack(side="left", padx=5)
+
         # OKボタン
         ok_button = tk.Button(self.master, text="OK", command=self.confirm_file_selection)
         ok_button.pack(pady=10)
+
+    def select_all_files(self):
+        """リストボックスの全項目を選択（NONE以外）"""
+        self.file_listbox.select_set(0, tk.END)
+
+    def select_none_files(self):
+        """リストボックスの全選択を解除"""
+        self.file_listbox.selection_clear(0, tk.END)
     
     def confirm_file_selection(self):
         """選択されたファイル名をValidFileNamesリストに追加し、設定画面を消して初期画面を表示"""
@@ -61,6 +81,9 @@ class CsvUiTool:
 
         # "[" キーで今出題中の問題を記憶するように設定
         self.master.bind("<KeyPress-[>", self.remember_question)
+
+        # "d" キーで現在の問題をmissed_question.csvから削除するように設定
+        self.master.bind("<KeyPress-d>", self.delete_missed_data)
 
 
     def initialmode(self):
@@ -269,6 +292,27 @@ class CsvUiTool:
                 writer.writerow({'問題': question, '解答': answer, 'ファイル名': file_name})
         else:
             print("現在の問題がないか、問題が重複しています")
+
+    def delete_missed_data(self, event=None):
+        """現在表示されている問題をmissed_question.csvから削除する"""
+        if self.current_question_index < len(self.data):
+            question = self.data[self.endcount]['Question']
+            answer = self.data[self.endcount]['Answer']
+            file_name = self.data[self.endcount]['FileName']
+            if self.MissedDataIsRedundant(self.data[self.endcount]):
+                # missed_question.csvから削除する
+                if os.path.isfile(self.missed_path):
+                    with open(self.missed_path, mode="r", encoding="utf-8", newline="") as f:
+                        reader = csv.DictReader(f)
+                        rows = [row for row in reader if not (row["問題"] == question and row["解答"] == answer and row["ファイル名"] == file_name)]
+                    # 一時ファイルに書き込む
+                    with open(self.missed_path, mode="w", encoding="utf-8", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=["問題", "解答", "ファイル名"])
+                        writer.writeheader()
+                        writer.writerows(rows)
+            else:
+                print("現在の問題はmissed_question.csvに存在しません。削除できません。")
+
 
     def MissedDataIsRedundant(self, data):
         """

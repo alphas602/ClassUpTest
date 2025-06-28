@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: main.py から開始",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/csv-ui-tool/src/main.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}

@@ -4,7 +4,7 @@ from utils.csv_handler import load_csv_data, load_all_csv_files
 from tkinter import ttk
 import os  # ファイルパス操作のためにインポート
 import csv  # CSVファイルの読み書きのためにインポート
-import gc  # ガーベジコレクションのためにインポート
+import MissedUtil as MU  # missed_question.csvの操作を行うユーティリティモジュールをインポート
 
 class CsvUiTool:
     def __init__(self,master, folder_path=None):
@@ -48,13 +48,6 @@ class CsvUiTool:
 
         # Enterキーで回答を表示するように設定
         self.master.bind("<Return>", self.refresh_display)
-
-        # "[" キーで今出題中の問題を記憶するように設定
-        self.master.bind("<KeyPress-[>", self.remember_question)
-
-        # "d" キーで現在の問題をmissed_question.csvから削除するように設定
-        self.master.bind("<KeyPress-d>", self.delete_missed_data)
-
 
     def initialmode(self):
         self.mode = tk.StringVar(value="normal")
@@ -185,6 +178,12 @@ class CsvUiTool:
         # 最初の質問を表示
         self.current_question_index = 0
         self.endcount = 0
+
+        # "[" キーで今出題中の問題を記憶するように設定
+        self.master.bind("<KeyPress-[>", lambda event: MU.remember_question(self.current_question_index, self.data, self.endcount, self.remember_data, self.missed_path, event))
+        # "d" キーで現在の問題をmissed_question.csvから削除するように設定
+        self.master.bind("<KeyPress-d>", lambda event: MU.delete_missed_data(self.current_question_index, self.data, self.endcount, self.missed_path, event))
+        
         self.set_question()
 
     def set_Title(self):
@@ -243,64 +242,6 @@ class CsvUiTool:
             self.endcount += 1
         else:
             self.set_answer()
-
-    def remember_question(self, event=None):
-        """現在の問題を記憶し、missed_question.csvに都度出力する"""
-        if self.current_question_index < len(self.data) and self.MissedDataIsRedundant(self.data[self.endcount])==False:
-            question = self.data[self.endcount]['Question']
-            answer = self.data[self.endcount]['Answer']
-            file_name = self.data[self.endcount]['FileName']
-            self.remember_data.append({'問題': question, '解答': answer, 'ファイル名': file_name})
-            print(f"問題: {question}, 解答: {answer}, ファイル名: {file_name}")
-
-            # 保存先パスを指定
-            file_exists = os.path.isfile(self.missed_path)
-            with open(self.missed_path, mode="a", encoding="utf-8", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=["問題", "解答", "ファイル名"])
-                if not file_exists:
-                    writer.writeheader()
-                writer.writerow({'問題': question, '解答': answer, 'ファイル名': file_name})
-        else:
-            print("現在の問題がないか、問題が重複しています")
-
-    def delete_missed_data(self, event=None):
-        """現在表示されている問題をmissed_question.csvから削除する"""
-        if self.current_question_index < len(self.data):
-            question = self.data[self.endcount]['Question']
-            answer = self.data[self.endcount]['Answer']
-            file_name = self.data[self.endcount]['FileName']
-            if self.MissedDataIsRedundant(self.data[self.endcount]):
-                # missed_question.csvから削除する
-                if os.path.isfile(self.missed_path):
-                    with open(self.missed_path, mode="r", encoding="utf-8", newline="") as f:
-                        reader = csv.DictReader(f)
-                        rows = [row for row in reader if not (row["問題"] == question and row["解答"] == answer and row["ファイル名"] == file_name)]
-                    # 一時ファイルに書き込む
-                    with open(self.missed_path, mode="w", encoding="utf-8", newline="") as f:
-                        writer = csv.DictWriter(f, fieldnames=["問題", "解答", "ファイル名"])
-                        writer.writeheader()
-                        writer.writerows(rows)
-            else:
-                print("現在の問題はmissed_question.csvに存在しません。削除できません。")
-
-
-    def MissedDataIsRedundant(self, data):
-        """
-        missed_question.csvに記載されている問題をチェックし、
-        「問題」「解答」「ファイル名」がすべて一致する行がある場合はTrueを返す
-        """
-        if os.path.isfile(self.missed_path):
-            with open(self.missed_path, encoding="utf-8", newline="") as f:
-                import csv
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if (
-                        row["問題"] == data["Question"]
-                        and row["解答"] == data["Answer"]
-                        and row["ファイル名"] == data["FileName"]
-                    ):
-                        return True
-        return False
     
 class FileSelectMode:
     def __init__(self,master,datanames,done_var):
@@ -310,7 +251,6 @@ class FileSelectMode:
         self.file_listbox = None
         self.done_var = done_var
         self.create_widgets()
-        self.var= tk.BooleanVar()  # OKボタンが押されたかどうかを管理する変数
 
     def create_widgets(self):
         # 設定画面のウィジェットを削除

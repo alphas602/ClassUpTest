@@ -4,74 +4,44 @@ from utils.csv_handler import load_csv_data, load_all_csv_files
 from tkinter import ttk
 import os  # ファイルパス操作のためにインポート
 import csv  # CSVファイルの読み書きのためにインポート
+import gc  # ガーベジコレクションのためにインポート
 
 class CsvUiTool:
-    def __init__(self, master, folder_path=None):
+    def __init__(self,master, folder_path=None):
         if folder_path is None:
             # app.pyから見て../mondai を指す相対パス
             folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai")
-        self.master = master
-        self.master.title("daigas classup")
+
+        # 初期化
         self.count = 0
         self.endcount = 0 # 問題終了数を設定するカウント
         self.folder_path = folder_path
         self.missed_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai", "missed_question", "missed_question.csv")
         self.ValidFileNames = []  # 有効なファイル名を格納するリスト
         self.remember_data = []  # 記憶した問題と回答を格納するリスト
+        self.master = master  # Tkinterのメインウィンドウを格納する変数
+        self.master.title("daigas classup")
 
+        # ファイル取得とファイル選択
         self.file_pathes,self.datanames = load_all_csv_files(self.folder_path)
 
-        self.open_settings_menu()
+        # ファイル選択モードを呼び出す
+        self.call_FileSelectMode()
 
-    def open_settings_menu(self):
-        """設定メニューをmaster上に開き、ファイル名を複数選択できるようにする"""
-        # 既存ウィジェットを一旦全て削除
-        for widget in self.master.winfo_children():
-            widget.destroy()
+    def call_FileSelectMode(self):
+        # ファイル選択モードの呼び出し
+        self.file_select_done = tk.BooleanVar(value=False)
+        FSM = FileSelectMode(self.master, self.datanames, self.file_select_done)
+        # OKボタンが押されるまで待機
+        self.master.wait_variable(self.file_select_done)
+        # OK後に選択結果を取得
+        self.ValidFileNames = getattr(self.master, "selected_filenames", [])
+        
+        # メイン画面初期化メソッドを呼び出す
+        self.initialize()
 
-        # ラベル
-        label = tk.Label(self.master, text="使用するファイルを選択してください（複数選択可）")
-        label.pack(pady=10)
-
-        # Listbox（複数選択可）
-        self.file_listbox = tk.Listbox(self.master, selectmode=tk.MULTIPLE, width=40, height=15)
-        for name in self.datanames:
-            self.file_listbox.insert(tk.END, name)
-        self.file_listbox.pack(pady=10)
-
-        # Select ALL/NONEボタン用フレーム
-        select_frame = tk.Frame(self.master)
-        select_frame.pack(pady=5)
-
-        # Select ALLボタン
-        select_all_btn = tk.Button(select_frame, text="Select ALL", command=self.select_all_files)
-        select_all_btn.pack(side="left", padx=5)
-
-        # Select NONEボタン
-        select_none_btn = tk.Button(select_frame, text="Select NONE", command=self.select_none_files)
-        select_none_btn.pack(side="left", padx=5)
-
-        # OKボタン
-        ok_button = tk.Button(self.master, text="OK", command=self.confirm_file_selection)
-        ok_button.pack(pady=10)
-
-    def select_all_files(self):
-        """リストボックスの全項目を選択（NONE以外）"""
-        self.file_listbox.select_set(0, tk.END)
-
-    def select_none_files(self):
-        """リストボックスの全選択を解除"""
-        self.file_listbox.selection_clear(0, tk.END)
-    
-    def confirm_file_selection(self):
-        """選択されたファイル名をValidFileNamesリストに追加し、設定画面を消して初期画面を表示"""
-        selected_indices = self.file_listbox.curselection()
-        self.ValidFileNames = [self.datanames[i] for i in selected_indices]
-
-        # 設定画面のウィジェットを削除
-        for widget in self.master.winfo_children():
-            widget.destroy()
-
+    def initialize(self):
+        """初期化メソッド"""
         # 初期画面を表示
         self.initialmode()
         self.init_buttons()
@@ -120,7 +90,7 @@ class CsvUiTool:
         self.start_button.pack(side="left", padx=10)
 
         # ファイル名選択ボタン
-        self.file_select_button = tk.Button(button_frame, text="ファイル選択", command=self.open_settings_menu)
+        self.file_select_button = tk.Button(button_frame, text="ファイル選択", command=self.call_FileSelectMode)
         self.file_select_button.pack(side="left", padx=10)
 
         # タイトル
@@ -331,3 +301,60 @@ class CsvUiTool:
                     ):
                         return True
         return False
+    
+class FileSelectMode:
+    def __init__(self,master,datanames,done_var):
+        self.master = master
+        self.ValidFileNames = []
+        self.datanames = datanames  # ファイル名のリストを受け取る
+        self.file_listbox = None
+        self.done_var = done_var
+        self.create_widgets()
+        self.var= tk.BooleanVar()  # OKボタンが押されたかどうかを管理する変数
+
+    def create_widgets(self):
+        # 設定画面のウィジェットを削除
+        for widget in self.master.winfo_children():
+            widget.destroy()
+
+        # ラベル
+        label = tk.Label(self.master, text="使用するファイルを選択してください（複数選択可）")
+        label.pack(pady=10)
+
+        # Listbox（複数選択可）
+        self.file_listbox = tk.Listbox(self.master, selectmode=tk.MULTIPLE, width=40, height=15)
+        for name in self.datanames:
+            self.file_listbox.insert(tk.END, name)
+        self.file_listbox.pack(pady=10)
+
+        # Select ALL/NONEボタン用フレーム
+        select_frame = tk.Frame(self.master)
+        select_frame.pack(pady=5)
+
+        # Select ALLボタン
+        select_all_btn = tk.Button(select_frame, text="Select ALL", command=self.select_all_files)
+        select_all_btn.pack(side="left", padx=5)
+
+        # Select NONEボタン
+        select_none_btn = tk.Button(select_frame, text="Select NONE", command=self.select_none_files)
+        select_none_btn.pack(side="left", padx=5)
+
+        # OKボタン
+        ok_button = tk.Button(self.master, text="OK", command=self.confirm_file_selection)
+        ok_button.pack(pady=10)
+
+    def select_all_files(self):
+        """リストボックスの全項目を選択"""
+        self.file_listbox.select_set(0, tk.END)
+
+    def select_none_files(self):
+        """リストボックスの全選択を解除"""
+        self.file_listbox.selection_clear(0, tk.END)
+
+    def confirm_file_selection(self):
+        selected_indices = self.file_listbox.curselection()
+        self.ValidFileNames = [self.datanames[i] for i in selected_indices]
+        for widget in self.master.winfo_children():
+            widget.destroy()
+        self.master.selected_filenames = self.ValidFileNames
+        self.done_var.set(True)  # ここでwait_variableを解除

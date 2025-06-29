@@ -191,6 +191,7 @@ class CsvUiTool:
         # "d" キーで現在の問題をmissed_question.csvから削除するように設定
         self.master.bind("<KeyPress-d>", lambda event: MU.delete_missed_data(self.current_question_index, self.data, self.current_question_index, self.missed_path, event))
         
+        self.count = 0  # 問題のカウントをリセット
         self.set_question()
 
     def set_Title(self):

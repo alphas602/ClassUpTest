@@ -3,10 +3,10 @@ import tkinter as tk
 from utils.csv_handler import load_csv_data, load_all_csv_files
 from tkinter import ttk
 import os  # ファイルパス操作のためにインポート
-import csv  # CSVファイルの読み書きのためにインポート
 import MissedUtil as MU  # missed_question.csvの操作を行うユーティリティモジュールをインポート
 
 class CsvUiTool:
+    """CSVファイルから問題を出題するGUIアプリケーション"""
     def __init__(self,master, folder_path=None):
         if folder_path is None:
             # app.pyから見て../mondai を指す相対パス
@@ -14,7 +14,7 @@ class CsvUiTool:
 
         # 初期化
         self.count = 0
-        self.endcount = 0 # 問題終了数を設定するカウント
+        self.current_question_index = 0 # 現在の問題番号
         self.folder_path = folder_path
         self.missed_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai", "missed_question", "missed_question.csv")
         self.ValidFileNames = []  # 有効なファイル名を格納するリスト
@@ -86,6 +86,10 @@ class CsvUiTool:
         self.file_select_button = tk.Button(button_frame, text="ファイル選択", command=self.call_FileSelectMode)
         self.file_select_button.pack(side="left", padx=10)
 
+        # 戻るボタン
+        self.back_button = tk.Button(button_frame, text="戻る", command=self.back_question)
+        self.back_button.pack(side="left", padx=10)
+
         # タイトル
         self.Title = tk.Label(self.master, text="Questions from CSV:")
         self.Title.pack()
@@ -129,6 +133,8 @@ class CsvUiTool:
         self.question_scroll = ttk.Scrollbar(self.master, command=self.question_text.yview)
         self.question_scroll.pack(side="right", fill="y")
         self.question_text["yscrollcommand"] = self.question_scroll.set
+        # 編集不可にする
+        self.question_text.config(state="disabled")
 
         # 回答用のスクロール可能なテキストエリア
         self.answer_text = tk.Text(
@@ -148,6 +154,8 @@ class CsvUiTool:
         self.answer_scroll = ttk.Scrollbar(self.master, command=self.answer_text.yview)
         self.answer_scroll.pack(side="right", fill="y")
         self.answer_text["yscrollcommand"] = self.answer_scroll.set
+        # 編集不可にする
+        self.answer_text.config(state="disabled")
 
     def set_mode(self):
         """モードを設定する（ラジオボタンの選択時に呼び出される）"""
@@ -177,12 +185,11 @@ class CsvUiTool:
         self.set_data()
         # 最初の質問を表示
         self.current_question_index = 0
-        self.endcount = 0
 
         # "[" キーで今出題中の問題を記憶するように設定
-        self.master.bind("<KeyPress-[>", lambda event: MU.remember_question(self.current_question_index, self.data, self.endcount, self.remember_data, self.missed_path, event))
+        self.master.bind("<KeyPress-[>", lambda event: MU.remember_question(self.current_question_index, self.data, self.current_question_index, self.remember_data, self.missed_path, event))
         # "d" キーで現在の問題をmissed_question.csvから削除するように設定
-        self.master.bind("<KeyPress-d>", lambda event: MU.delete_missed_data(self.current_question_index, self.data, self.endcount, self.missed_path, event))
+        self.master.bind("<KeyPress-d>", lambda event: MU.delete_missed_data(self.current_question_index, self.data, self.current_question_index, self.missed_path, event))
         
         self.set_question()
 
@@ -195,28 +202,25 @@ class CsvUiTool:
             self.Title.config(text="No questions available.")
 
     def set_question(self):
+        # 一時的に編集可能にする
+        self.question_text.config(state="normal")
+        self.question_text.delete("1.0", tk.END)  # テキストエリアをクリア
+
         if self.current_question_index < len(self.data):
-            # 一時的に編集可能にする
-            self.question_text.config(state="normal")
-            self.question_text.delete("1.0", tk.END)  # テキストエリアをクリア
             self.question_text.insert(tk.END, self.data[self.current_question_index]['Question'])
             self.set_Title()  # タイトルを更新
-            # 再び編集不可にする
-            self.question_text.config(state="disabled")
-
-            # 回答エリアをクリア
-            self.answer_text.config(state="normal")
-            self.answer_text.delete("1.0", tk.END)
-            self.answer_text.config(state="disabled")
-        else:
-            self.question_text.config(state="normal")
-            self.question_text.delete("1.0", tk.END)
+        elif len(self.data)==0:
             self.question_text.insert(tk.END, "No more questions.")
-            self.question_text.config(state="disabled")
+        else:
+            self.call_FileSelectMode
+        
+        # 再び編集不可にする
+        self.question_text.config(state="disabled")
 
-            self.answer_text.config(state="normal")
-            self.answer_text.delete("1.0", tk.END)
-            self.answer_text.config(state="disabled")
+        # 回答エリアをクリアし、編集不可にする
+        self.answer_text.config(state="normal")
+        self.answer_text.delete("1.0", tk.END)
+        self.answer_text.config(state="disabled")
 
     def set_answer(self):
         if self.current_question_index < len(self.data):
@@ -227,7 +231,6 @@ class CsvUiTool:
             self.answer_text.insert(tk.END, answer)
             # 再び編集不可にする
             self.answer_text.config(state="disabled")
-            self.current_question_index += 1
         else:
             self.answer_text.config(state="normal")
             self.answer_text.delete("1.0", tk.END)
@@ -238,12 +241,22 @@ class CsvUiTool:
         """Enterキーが押されたときに呼び出されるメソッド"""
         self.count += 1
         if self.count % 2 == 0:
+            self.current_question_index += 1
             self.set_question()
-            self.endcount += 1
         else:
             self.set_answer()
+
+    def back_question(self):
+        """前の問題に戻る"""
+        if self.current_question_index > 0:
+            self.current_question_index -= 1
+            self.count = 0
+            self.set_question()
+        else:
+            print("これ以上前の問題はありません。")
     
 class FileSelectMode:
+    """ファイル選択モードのクラス"""
     def __init__(self,master,datanames,done_var):
         self.master = master
         self.ValidFileNames = []

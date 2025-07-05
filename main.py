@@ -25,7 +25,7 @@ def main():
 
     # --- セットアップ画面
     if st.session_state.app_state == "setup":
-        folder_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai")
+        folder_path = os.path.join(os.path.dirname(__file__), "mondai")
         file_pathes, datanames = load_all_csv_files(folder_path)
         st.markdown("#### 使用するファイルを選択してください")
 
@@ -64,7 +64,7 @@ def main():
         if st.button("データを読み込んで開始"):
             valid_file_names = selected_files
             data = []
-            missed_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai", "missed_question", "missed_question.csv")
+            missed_path = os.path.join(os.path.dirname(__file__), "mondai", "missed_question", "missed_question.csv")
             if mode == "missed_question.csvから出題":
                 if os.path.isfile(missed_path):
                     data = load_csv_data(missed_path)
@@ -171,7 +171,7 @@ def main():
             st.session_state.show_answer = False
             st.rerun()
     with col3:
-        missed_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "mondai", "missed_question", "missed_question.csv")
+        missed_path = os.path.join(os.path.dirname(__file__), "mondai", "missed_question", "missed_question.csv")
         if st.button("問題を記憶（missed_question.csvへ）"):
             MU.remember_question(qidx, data, qidx, [], missed_path)
             st.success("問題をmissed_question.csvに記憶しました。")

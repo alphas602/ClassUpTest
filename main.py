@@ -83,6 +83,7 @@ def main():
                 st.session_state.selected_files = selected_files
                 st.session_state.current_question_index = 0
                 st.session_state.app_state = "quiz"
+                st.rerun()
             else:
                 st.warning("出題できる問題がありません。")
         st.stop()  # ここでUIを止める
@@ -103,9 +104,14 @@ def main():
         min-height: 100vh;
     }
 
+    /* markdownテキストのサイズを小さく */
+    .stMarkdown, .stMarkdown p, .stMarkdown ul, .stMarkdown ol, .stMarkdown li {
+        font-size: 0.95em !important;
+    }
+
     /* 問題・答えの枠 */
     .big-question {
-        font-size: 1.1em;
+        font-size: 1em;
         margin: 1em 0;
         border: 2px solid #888;
         border-radius: 8px;
@@ -115,7 +121,7 @@ def main():
         color: #111;
     }
     .big-answer {
-        font-size: 1em;
+        font-size: 0.92em;
         margin: 1em 0;
         border: 1.5px solid #aaa;
         border-radius: 6px;
@@ -127,9 +133,12 @@ def main():
     """, unsafe_allow_html=True)
 
 
-    st.subheader(f"ファイル名: {data[qidx]['FileName']}")
     st.markdown(
-        f'<div class="big-question">{to_html_with_br(data[qidx]["Question"])}"</div>',
+        f'<div style="font-size:0.9em; color:#fff; margin-bottom:0.5em;">ファイル名: {data[qidx]["FileName"]}</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        f'<div class="big-question">{to_html_with_br(data[qidx]["Question"])}</div>',
         unsafe_allow_html=True
     )
 
@@ -143,13 +152,13 @@ def main():
 
     if st.session_state.show_answer:
         st.markdown(
-            f'<div class="big-answer" style="color:#111;">{to_html_with_br(data[qidx]["Answer"])}"</div>',
+            f'<div class="big-answer" style="color:#111;">{to_html_with_br(data[qidx]["Answer"])}</div>',
             unsafe_allow_html=True
         )
         next_label = "次へ"
     else:
         st.markdown(
-            f'<div class="big-answer" style="color:#fff;">{to_html_with_br(data[qidx]["Answer"])}"</div>',
+            f'<div class="big-answer" style="color:#fff;">{to_html_with_br(data[qidx]["Answer"])}</div>',
             unsafe_allow_html=True
         )
         next_label = "答えを見る"

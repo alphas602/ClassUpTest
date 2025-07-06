@@ -172,9 +172,27 @@ def main():
             st.rerun()
     with col3:
         missed_path = os.path.join(os.path.dirname(__file__), "mondai", "missed_question", "missed_question.csv")
-        if st.button("問題を記憶（missed_question.csvへ）"):
-            MU.remember_question(qidx, data, qidx, [], missed_path)
-            st.success("問題をmissed_question.csvに記憶しました。")
+        if st.session_state.mode == "missed_question.csvから出題":
+            if st.button("問題を間違いリストから削除"):
+                MU.delete_missed_data(qidx, data, qidx, missed_path)
+                st.success("問題をmissed_question.csvから削除しました。")
+                # 削除後のリストを再読み込み
+                if os.path.isfile(missed_path):
+                    st.session_state.data = load_csv_data(missed_path)
+                    if len(st.session_state.data) == 0:
+                        st.session_state.app_state = "setup"
+                        st.rerun()
+                    elif st.session_state.current_question_index >= len(st.session_state.data):
+                        st.session_state.current_question_index = max(0, len(st.session_state.data) - 1)
+                    st.session_state.show_answer = False
+                    st.rerun()
+                else:
+                    st.session_state.app_state = "setup"
+                    st.rerun()
+        else:
+            if st.button("問題を記憶（missed_question.csvへ）"):
+                MU.remember_question(qidx, data, qidx, [], missed_path)
+                st.success("問題をmissed_question.csvに記憶しました。")
 
     # リセット（最初からやり直し）
     if st.button("最初からやり直す"):
